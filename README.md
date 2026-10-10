@@ -1,39 +1,49 @@
-# dBASE SQLite, console de comandos em Python
+# dBASE SQLite PLUS 2.1
 
-Ambiente de terminal inspirado no dBASE II/III para criar seus próprios bancos, definir campos e manipular registros com comandos xBase. Cada banco é um arquivo SQLite real, sem DBF e sem dependências externas. Python 3.10 ou superior. Windows, Linux e macOS.
+Interpretador Python para executar programas PRG escritos com um conjunto ampliado de comandos dBASE III PLUS, mantendo os dados em SQLite. Inclui console, procedimentos, variáveis com escopo, parâmetros por referência, macros, expressões xBase, operações entre áreas e entrada/saída no terminal.
 
-## Iniciar
+Esta versão amplia a implementação SQLite 2.0 entregue anteriormente. Não é o executável original, não emula MS-DOS e não oferece compatibilidade integral com qualquer aplicação dBASE III PLUS. A cobertura e as diferenças estão em [COMPATIBILITY.md](COMPATIBILITY.md). O parser rejeita comandos desconhecidos explicitamente.
 
-Extraia o ZIP. No Windows, abra `iniciar.bat`, ou execute no terminal:
+Referência utilizada: David M. Kalman, *The dBASE Language Handbook*, 1989, no [PDF indicado](https://www.terrellamedia.com/wp-content/uploads/2022/01/dBASE-Language-Handbook-by-David-M-Kalman-Final.pdf). O livro trata vários dialetos. Recursos de Clipper/FoxBASE/dBASE IV que também foram incluídos são identificados como extensões. O PDF e os exemplos do livro não são redistribuídos neste pacote; os exemplos PRG aqui foram escritos para este projeto.
+
+## Requisitos e início
+
+Python 3.10 ou superior, sem pacotes externos. Windows, Linux e macOS. Testes executados em Python 3.12/Linux. O inicializador Windows foi incluído, mas não foi validado em uma máquina Windows nesta execução.
+
+Extraia o ZIP e abra um terminal na pasta que contém `main.py`:
 
 ```bash
 python main.py --cwd ./data
 ```
 
-O ponto `.` é o prompt do ambiente. Digite os comandos sem esse ponto. `HELP` exibe a referência; `QUIT` encerra. As alterações são persistidas imediatamente em transações SQLite, sem exigir SAVE. `SAVE` salva apenas variáveis de memória.
+No Windows, também pode abrir `iniciar.bat`. Digite HELP para a referência de comandos e QUIT para sair. O ponto é o prompt e não faz parte do comando.
 
-## Criar seu próprio banco
+## Formulários da versão 2.1
+
+GET exibe o valor entre dois-pontos, READ edita campos com máscaras e salta separadores. SET CONFIRM ON exige Enter; OFF permite avanço automático. Inclui Control+S/Control+D, navegação entre campos, SAY USING e SAVE ALL LIKE/EXCEPT. Veja [FORMS.md](FORMS.md) e os exemplos `formulario.prg` e `formulario_alunos.prg`.
+
+## Seu próprio banco SQLite
 
 ```text
 CREATE clientes
 ```
 
-Informe cada campo na forma `NOME TIPO TAMANHO DECIMAIS`. Linha vazia conclui:
+Informe os campos como `NOME TIPO LARGURA DECIMAIS`; uma linha vazia conclui:
 
 ```text
-NOME C 40
-IDADE N 3
+CODIGO N 5
+NOME C 30
 SALDO N 12 2
 ATIVO L 1
-NASCIMENTO D 10
+CRIADO D 8
 ```
 
-Ou crie em uma única linha, extensão deste ambiente:
+Ou use a extensão de criação em uma linha:
 
 ```text
-CREATE clientes (NOME C 40, IDADE N 3, SALDO N 12 2, ATIVO L 1)
+CREATE clientes (CODIGO N 5, NOME C 30, SALDO N 12 2, ATIVO L 1, CRIADO D 8)
 APPEND BLANK
-REPLACE NOME WITH 'BODEZARONI', IDADE WITH 52, SALDO WITH 1500.50, ATIVO WITH .T.
+REPLACE CODIGO WITH 1, NOME WITH 'ANA', SALDO WITH 1500.50, ATIVO WITH .T., CRIADO WITH DATE()
 DISPLAY
 DISPLAY STRUCTURE
 USE
@@ -41,106 +51,154 @@ USE clientes
 LIST ALL
 ```
 
-`CREATE` abre o banco criado. Não sobrescreve arquivos existentes. `USE clientes` abre `clientes.sqlite`. Cada arquivo contém uma tabela de registros e tabelas internas de metadados. Você pode criar quantos arquivos precisar. Este formato não abre bancos SQLite arbitrários que não possuam esses metadados.
+Cada banco é um arquivo `nome.sqlite`, com uma tabela de registros e tabelas internas de metadados. CREATE abre o banco criado. Comandos de escrita persistem os dados imediatamente. SAVE salva variáveis de memória, não registros.
 
-## Tipos
+## Executar seu PRG
 
-| Tipo | Uso | Armazenamento |
-| :--- | :--- | :--- |
-| C | Texto com limite de caracteres | TEXT |
-| N | Número com largura e casas decimais | REAL |
-| L | Lógico `.T.` ou `.F.` | INTEGER 1/0 |
-| D | Data ISO `AAAA-MM-DD`, ou vazia | TEXT |
-| M | Texto livre, sem limite do campo C | TEXT |
-
-Números usam ponto decimal. N usa ponto flutuante e arredondamento, portanto não é indicado para cálculos financeiros que exijam representação decimal exata. Campos C não recebem preenchimento com espaços. Datas usam ISO, diferente da apresentação original. Campos não informados recebem texto vazio ou zero. Valores que excedam a largura são rejeitados.
-
-## Comandos de uso diário
-
-| Comando | Comportamento |
-| :--- | :--- |
-| `USE nome`, `USE` | Abre banco ou fecha área atual |
-| `CREATE nome` | Definição interativa dos campos |
-| `APPEND`, `APPEND BLANK` | Formulário sequencial ou registro vazio |
-| `EDIT`, `CHANGE`, `EDIT 2` | Edita campos, Enter mantém valor |
-| `DISPLAY` | Exibe registro atual |
-| `LIST`, `LIST ALL`, `BROWSE` | Lista registros visíveis |
-| `LIST NOME, IDADE ALL FOR IDADE >= 18` | Projeta campos e filtra |
-| `DISPLAY NEXT 3` | Exibe a partir da posição atual |
-| `GO TOP`, `GO BOTTOM`, `GO 2`, `SKIP -1` | Navega pelo banco |
-| `REPLACE SALDO WITH SALDO * 1.05 ALL` | Atualiza registros |
-| `DELETE ALL FOR IDADE < 18` | Marca exclusão lógica |
-| `RECALL ALL` | Desmarca exclusão nos registros visíveis |
-| `SET DELETED ON`, `SET DELETED OFF` | Oculta ou mostra excluídos |
-| `PACK` | Remove excluídos e renumera registros |
-| `ZAP` | Apaga todos os registros após confirmação SIM |
-| `SET FILTER TO IDADE >= 18`, `SET FILTER TO` | Ativa ou remove filtro |
-| `LOCATE FOR NOME = 'ANA'`, `CONTINUE` | Busca sequencial |
-| `COUNT FOR ATIVO = .T.` | Conta registros visíveis |
-| `SUM SALDO TO TOTAL` | Soma e salva em variável |
-| `INDEX ON NOME TO nomes` | Define ordenação persistente |
-| `SET ORDER TO nomes`, `SET ORDER TO` | Ativa ou desativa ordenação |
-| `SEEK 'ANA'`, `FIND ANA` | Busca igualdade na chave do índice |
-| `SELECT PRIMARY`, `SELECT SECONDARY`, `SELECT 3` | Seleciona área independente |
-| `DISPLAY FILES`, `DISPLAY STATUS`, `DISPLAY MEMORY` | Inspeciona ambiente |
-| `COPY TO clientes DELIMITED` | Exporta CSV UTF-8 |
-| `APPEND FROM clientes.csv` | Importa CSV, cabeçalhos iguais aos campos |
-| `STORE 10 TO X`, `? X + 2`, `RELEASE ALL` | Variáveis e expressões |
-| `SAVE TO memoria`, `RESTORE FROM memoria` | Variáveis em JSON |
-| `ACCEPT 'Nome: ' TO N`, `INPUT 'Valor: ' TO V` | Entrada de texto ou expressão |
-| `DO programa.prg` | Executa script PRG ou CMD |
-| `CLEAR`, `HELP`, `QUIT` | Terminal, ajuda e saída |
-
-Sem ALL/NEXT/REST, DISPLAY, REPLACE, DELETE e RECALL afetam apenas o registro atual. LIST, COUNT e SUM usam todos os registros visíveis por padrão. Com DELETED ON, use DELETED OFF antes de RECALL para tornar os excluídos acessíveis. Filtros continuam aplicados a RECALL. PACK ignora filtro e remove todos os registros marcados no banco aberto.
-
-As áreas possuem conexão, ponteiro, filtro e ordem independentes. Variáveis, SET DELETED e SET EXACT são globais. ALIAS pode identificar uma área no STATUS; referências `alias->campo` não foram implementadas.
-
-## Expressões
-
-Comparações `=`, `<>`, `#`, `<`, `<=`, `>`, `>=`; aritmética `+`, `-`, `*`, `/`, `%`; `.AND.`, `.OR.`, `.NOT.`, `.T.`, `.F.` e parênteses. Strings entre aspas simples ou duplas. Use a outra espécie de aspas quando o texto contiver uma delas. Não há suporte a aspas escapadas em todas as posições do parser de comandos.
-
-Funções: LEN, TRIM, UPPER, LOWER, INT, VAL, STR, ABS, ROUND, CHR, AT, DATE, RECNO, RECCOUNT, DELETED, EOF e BOF. STR converte para texto, sem argumentos de largura. `FOUND` é uma variável booleana atualizada por LOCATE/CONTINUE/SEEK/FIND. `SET EXACT OFF` permite comparação por prefixo em `=` para textos; ON exige igualdade. SEEK/FIND exigem igualdade integral da chave.
-
-O interpretador usa AST com lista permitida, sem `eval`, acesso a atributos ou chamadas Python arbitrárias. Os valores SQL são parametrizados. Caminhos de bancos, scripts e exportações ficam restritos a `--cwd`. Não há SQL livre no console.
-
-## Scripts e lote
+Coloque seus `.PRG` e suas dependências dentro do diretório escolhido em `--cwd`, junto com os bancos no formato desta implementação:
 
 ```bash
-python main.py --cwd ./data -c "USE clientes" -c "LIST ALL"
+python main.py --cwd ./meu_sistema --cmd principal.prg
 ```
 
-Para executar o exemplo completo em uma pasta vazia:
-
-Como scripts ficam restritos a `--cwd`, copie primeiro `examples/demo.prg` para `demo_data` e execute:
+Para terminais sem ANSI ou para observar SAYs como linhas:
 
 ```bash
-python main.py --cwd ./demo_data --cmd demo.prg
+python main.py --cwd ./meu_sistema --cmd principal.prg --plain
 ```
 
-O demo cria clientes.sqlite, inclui registros, navega, filtra, indexa e exporta CSV. Não execute novamente no mesmo diretório sem escolher outro nome de banco.
+Arquivos legados: UTF-8 é tentado primeiro; CP850 é o fallback. Se o programa usa outra codificação:
 
-Scripts suportam comentários iniciados por `*` ou `&&`, comandos em uma linha, IF/ELSE/ENDIF aninhados, DO WHILE/ENDDO e DO de outros scripts. Há limite de 100.000 passos por script e profundidade de chamadas 20. Erros interrompem execução; comandos anteriores já confirmados permanecem gravados. Não há transação envolvendo um script inteiro.
+```bash
+python main.py --cwd ./meu_sistema --cmd principal.prg --encoding cp1252
+```
 
-## SQLite e arquitetura
+No console:
 
-`dbase2py/engine.py` contém o parser de comandos, expressão segura, gerenciamento de áreas e persistência; `cli.py` contém o terminal. `_schema` guarda tipos, larguras e casas decimais; `records` guarda campos, `_recno` e `_deleted`; `_indexes` guarda as expressões de ordenação.
+```text
+SET PROCEDURE TO rotinas
+DO principal
+```
 
-Índices de campo simples também criam um índice SQLite nativo. Ordenação e busca do console são avaliadas em Python, inclusive índices de expressão; não reproduzem NDX e não oferecem o desempenho de consultas SQL diretas para grandes volumes. REINDEX recalcula a visão corrente, pois não há arquivo externo de índice a reconstruir. CSV importa somente campos definidos, sem exclusão lógica ou índices. Não faça alterações diretas nas tabelas internas sem preservar a consistência do formato.
+Nomes de arquivos são procurados sem distinguir maiúsculas/minúsculas quando há uma correspondência única. Os caminhos são restritos ao diretório `--cwd`; diretórios/drive letters DOS, SET DEFAULT e SET PATH não estão implementados. Adapte os caminhos legados ou organize os arquivos nesse diretório.
 
-Os comandos REPLACE validam todos os valores antes de gravar. APPEND FROM valida o lote e o insere em uma transação. O console é destinado a uso local; não implementa travamento de registros ou compartilhamento concorrente compatível com dBASE III.
+## Auditoria antes da execução
 
-## Compatibilidade e origem
+```bash
+python main.py --cwd ./meu_sistema --check principal.prg
+```
 
-O ZIP recebido contém somente main.py, README.md e ORIGINAL_DISK_ANALYSIS.md. O módulo dbase2py citado pelo README não foi incluído. Esta versão implementa um motor novo com base na interface documentada. A pasta `original` preserva os três arquivos recebidos para rastreabilidade. As alegações do README original sobre o motor ausente não representam funcionalidades verificadas no anexo.
+A auditoria compila os blocos e identifica parte dos comandos, configurações SET e funções não implementadas. Não executa o PRG. Retorna JSON e código de saída 2 quando detecta recurso não suportado. Quando não encontra erro, o status continua `needs_runtime_validation`: cláusulas, macros, procedimentos externos, tipos e comportamento de negócio ainda exigem execução e testes. Não certifica compatibilidade. Dependências DO e SET PROCEDURE precisam ser auditadas separadamente.
 
-É uma implementação de um subconjunto do comportamento xBase, não uma reprodução integral do dBASE II/III. Não inclui DBF, NDX, MEM binário, JOIN, TOTAL, UPDATE, SORT, INSERT, REPORT FORM, formulários de tela @ SAY/GET/READ, DO CASE, TEXT, macros &, funções de usuário nem compatibilidade integral com programas legados. BROWSE é uma listagem textual; EDIT é um formulário sequencial. Um comando desconhecido gera erro explícito.
+Erros em execução informam arquivo, linha e comando. Código de saída 1 indica falha; 0 indica término sem erro não tratado. CANCEL termina a cadeia de programas e pode produzir saída 0, assim como um ON ERROR que trate a falha.
 
-## Validação
+## Demonstração completa
+
+Prepare os dados e copie os programas de exemplo para uma pasta nova:
+
+```bash
+python examples/setup.py --cwd ./demo_data
+python main.py --cwd ./demo_data --cmd negocios.prg --plain
+```
+
+O programa usa sintaxe dBASE III PLUS para percorrer clientes, chamar um procedimento com parâmetro por referência, buscar por índice, sincronizar uma relação, executar JOIN, atualizar limites com UPDATE, copiar a estrutura, usar CREATE FROM e gerar CSV/arquivo de saída.
+
+Resultados esperados:
+
+- 2 clientes de São Paulo, com limites originais somando 4000.
+- O procedimento aumenta uma variável do chamador de 1000 para 1100.
+- JOIN produz 3 registros de cliente/pedido.
+- UPDATE altera os limites e a soma final chega a 6075.
+- A linha final mostra `Validacao: .T.`.
+
+O demo gera destinos novos. Execute novamente em outro diretório, pois CREATE/COPY de bancos não sobrescrevem arquivos existentes.
+
+Menu interativo de consulta:
+
+```bash
+python main.py --cwd ./demo_data --cmd menu.prg
+```
+
+Escolha L para listar, B para buscar ou X para sair. A busca aceita um prefixo do nome. READ agora oferece edição por tecla e máscaras no terminal interativo; --plain mantém entrada por linha. Consulte [FORMS.md](FORMS.md).
+
+## Procedimentos e parâmetros
+
+Arquivo `rotinas.prg`:
+
+```text
+PROCEDURE aumenta
+PARAMETERS PVALOR, PTAXA
+PRIVATE TEMP
+TEMP = PVALOR * PTAXA
+PVALOR = PVALOR + TEMP
+RETURN
+```
+
+Chamador:
+
+```text
+SET PROCEDURE TO rotinas
+VALOR = 1000
+DO aumenta WITH VALOR, 0.10
+? VALOR
+```
+
+VALOR vira 1100. Uma variável simples passada em DO WITH é uma referência à variável do chamador. Campo, literal ou expressão é passado por valor. `(VALOR)` força uma expressão passada por valor. PARAMETERS deve ser o primeiro comando executável quando existem argumentos; as quantidades precisam coincidir.
+
+PRIVATE oculta variáveis homônimas do chamador até terminar o procedimento. PUBLIC mantém uma variável disponível depois da chamada. Variáveis novas criadas num programa são liberadas quando ele termina. As variáveis existentes de um chamador permanecem acessíveis por escopo dinâmico.
+
+## Comandos e expressões
+
+Consulte [COMMAND_REFERENCE.md](COMMAND_REFERENCE.md) para exemplos de sintaxe e [COMPATIBILITY.md](COMPATIBILITY.md) antes de adaptar programas existentes.
+
+Destaques: IF/ELSE/ENDIF, DO CASE, DO WHILE, LOOP, EXIT, RETURN, RETURN TO MASTER, DO WITH, PROCEDURE, PARAMETERS, PUBLIC, PRIVATE, macros `&nome`, referências `alias->campo` e `M->variavel`, TEXT/ENDTEXT, @ SAY/GET, PICTURE/RANGE, READ, ON ERROR e RETRY.
+
+REPLACE valida os tipos: C/M recebem texto, N recebe número, L recebe lógico e D recebe data. Use CTOD para transformar texto em data. Campos C são preenchidos com espaços e truncados à largura, como no comportamento documentado no handbook. SET EXACT OFF compara o texto da direita como prefixo, preservando espaços; ON ignora espaços finais na igualdade. `==` é uma extensão que exige igualdade integral, incluindo espaços finais.
+
+## SQLite e migração
+
+`USE clientes.dbf` é traduzido para `clientes.sqlite`, permitindo manter esse nome nos PRGs. FILE, CREATE e comandos de arquivos também traduzem a extensão .dbf para .sqlite. Isso não importa nem lê DBF binário. Um DBF original não deve ser renomeado para SQLite: ele precisa de conversão externa para o formato de metadados deste projeto. NDX/MDX/DBT/FRM/MEM binários não são lidos.
+
+Bancos SQLite criados pela versão 1.0 podem ser abertos pela 2.0. Ao abrir, é adicionada uma coluna de metadados de índices quando necessário. A 2.0 não foi projetada para permitir que a versão 1.0 volte a escrever nesses índices depois da atualização. Faça uma cópia se precisar manter ambas.
+
+O banco usa `records`, `_schema` e `_indexes`; a exclusão lógica fica em `_deleted`. Os índices pertencem ao próprio SQLite, sem arquivo NDX. Chaves de campo simples também criam índices SQLite nativos, mas ordenação, filtragem e busca no console são avaliadas em Python. JOIN pode percorrer todas as combinações de registros. Este interpretador é indicado para estudos, aplicações locais pequenas e adaptação de lógica, não para grandes volumes ou equivalência de desempenho com o runtime original.
+
+Numéricos são armazenados em REAL e podem ter aproximação de ponto flutuante. ROUND usa arredondamento decimal half-up na etapa de formatação/validação, mas isso não muda a representação do armazenamento para decimal exato. Não há atomicidade de PRG inteiro nem transação distribuída entre arquivos. Operações entre múltiplos bancos precisam de validação de negócio.
+
+## API Python
+
+```python
+from dbase2py import DBaseEngine, Field
+
+engine = DBaseEngine('./dados', plain=True)
+try:
+    engine.create('pessoas', [Field('NOME', 'C', 30), Field('IDADE', 'N', 3)])
+    engine.append({'NOME': 'ANA', 'IDADE': 30})
+    engine.execute('GO TOP')
+    engine.execute('DISPLAY')
+finally:
+    engine.close()
+```
+
+## Validação e arquitetura
 
 ```bash
 python -m unittest discover -s tests -v
 ```
 
-A suíte verifica criação interativa, persistência SQLite, campos, navegação, exclusão e PACK, filtros, buscas, índices persistentes, validação de atualizações, CSV, variáveis, scripts, áreas e rejeição de expressões/caminhos indevidos. Não requer pytest.
+A suíte cobre persistência, expressões, datas, escopo, parâmetros por referência, comandos de dados, índices, relações, arquivos, leitura de teclado, auditoria e execução dos exemplos pela CLI. Veja [VALIDATION.md](VALIDATION.md) para o resultado registrado nesta entrega.
 
-Referências para estudo: https://www.sqlite.org/lang.html e https://docs.python.org/3/library/sqlite3.html. São referências gerais, não evidência de compatibilidade integral com xBase.
+Arquivos principais:
+
+- `dbase2py/syntax.py`: lexer, cláusulas, comentários e abreviações.
+- `dbase2py/expressions.py`: parser Pratt de expressões xBase.
+- `dbase2py/program.py`: compilação e execução dos blocos PRG.
+- `dbase2py/memory.py`: variáveis, escopo dinâmico e referências.
+- `dbase2py/forms.py`: máscaras, editor de campos e teclado por plataforma.
+- `dbase2py/functions.py`: funções de texto, número, data e ambiente.
+- `dbase2py/engine.py`: comando, tela, índices e operações de dados.
+- `dbase2py/storage.py`: camada de persistência e funcionalidades herdadas da 1.0.
+- `dbase2py/compatibility.py`: auditoria estática parcial.
+- `dbase2py/cli.py`: terminal e execução em lote.
+
+O ZIP original recebido não incluía o módulo dbase2py citado em seu README. A pasta `original` preserva os três arquivos recebidos; suas alegações sobre um motor ausente não foram usadas como evidência de funcionalidades existentes. A implementação nova foi construída nesta conversa.

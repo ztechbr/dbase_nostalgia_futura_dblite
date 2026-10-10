@@ -1,0 +1,18 @@
+* A criacao inline e uma extensao deste interpretador.
+IF .NOT. FILE("alunos.dbf")
+  CREATE alunos (NOME C 30, DATA C 10, NOTA N 5 2)
+  APPEND BLANK
+  REPLACE NOME WITH "Pablo Goncalves", NOTA WITH 7.50
+ELSE
+  USE alunos
+ENDIF
+GO 1
+CLEAR
+SET CONFIRM ON
+@ 0,0 SAY "Nome " GET NOME PICTURE "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+@ 1,0 SAY "Data " GET DATA PICTURE "99/99/9999"
+@ 2,0 SAY "Nota " GET NOTA PICTURE "99.99" RANGE 0,10
+READ
+@ 4,0 SAY "Dados gravados no SQLite."
+USE
+RETURN

@@ -17,11 +17,11 @@ class EngineTests(unittest.TestCase):
         self.e.execute('USE'); self.e.execute('USE pessoas')
         self.assertEqual(self.e.execute('COUNT'),3)
         db=sqlite3.connect(self.root/'pessoas.sqlite')
-        self.assertEqual(db.execute('SELECT NOME FROM records WHERE _recno=1').fetchone()[0],'ANA'); db.close()
+        self.assertEqual(db.execute('SELECT NOME FROM records WHERE _recno=1').fetchone()[0].rstrip(),'ANA'); db.close()
     def test_navigation(self):
         self.e.execute('GO TOP'); self.assertEqual(self.e.expr('RECNO()'),1)
         self.e.execute('SKIP 3'); self.assertTrue(self.e.expr('EOF()'))
-        self.e.execute('SKIP -1'); self.assertEqual(self.e.current()['NOME'],'CAIO')
+        self.e.execute('SKIP -1'); self.assertEqual(self.e.current()['NOME'].rstrip(),'CAIO')
         self.e.execute('GO BOTTOM'); self.e.execute('SKIP -3'); self.assertTrue(self.e.expr('BOF()'))
     def test_delete_pack(self):
         self.e.execute('GO 2'); self.e.execute('DELETE'); self.e.execute('SET DELETED ON')
@@ -29,13 +29,13 @@ class EngineTests(unittest.TestCase):
         self.e.execute('SET DELETED OFF'); self.e.execute('RECALL'); self.assertEqual(self.e.execute('COUNT'),3)
         self.e.execute('DELETE'); self.e.execute('PACK')
         self.assertEqual([r['_recno'] for r in self.e.rows()],[1,2])
-        self.assertEqual(self.e.rows()[1]['NOME'],'CAIO')
+        self.assertEqual(self.e.rows()[1]['NOME'].rstrip(),'CAIO')
     def test_filter_locate(self):
         self.e.execute('SET FILTER TO IDADE >= 40 .AND. ATIVO = .T.')
         self.assertEqual(self.e.execute('COUNT'),2)
         self.assertTrue(self.e.execute('LOCATE FOR IDADE >= 40'))
-        self.assertEqual(self.e.current()['NOME'],'BOB')
-        self.assertTrue(self.e.execute('CONTINUE')); self.assertEqual(self.e.current()['NOME'],'CAIO')
+        self.assertEqual(self.e.current()['NOME'].rstrip(),'BOB')
+        self.assertTrue(self.e.execute('CONTINUE')); self.assertEqual(self.e.current()['NOME'].rstrip(),'CAIO')
         self.assertFalse(self.e.execute('CONTINUE'))
     def test_index(self):
         self.e.execute('INDEX ON NOME TO nomes'); self.assertTrue(self.e.execute("SEEK 'BOB'"))
@@ -57,7 +57,7 @@ class EngineTests(unittest.TestCase):
         self.e.execute('STORE 123 TO X'); self.e.execute('SAVE TO vars'); self.e.execute('RELEASE ALL'); self.e.execute('RESTORE FROM vars')
         self.assertEqual(self.e.expr('X'),123)
     def test_scripts(self):
-        (self.root/'test.prg').write_text('STORE 0 TO X\nGO TOP\nDO WHILE .NOT. EOF()\nIF IDADE >= 40\nSTORE X + 1 TO X\nELSE\nSTORE X TO X\nENDIF\nSKIP\nENDDO\n')
+        (self.root/'test.prg').write_text('PUBLIC X\nSTORE 0 TO X\nGO TOP\nDO WHILE .NOT. EOF()\nIF IDADE >= 40\nSTORE X + 1 TO X\nELSE\nSTORE X TO X\nENDIF\nSKIP\nENDDO\n')
         self.e.execute('DO test'); self.assertEqual(self.e.expr('X'),2)
     def test_safety(self):
         with self.assertRaises(ValueError): self.e.execute('CREATE ../escape (N C 5)')
