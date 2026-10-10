@@ -187,7 +187,10 @@ class PlusTests(unittest.TestCase):
         self.assertEqual(self.e.expr('RECCOUNT()'),1); self.assertEqual(self.e.expr('VALOR'),31.5)
     def test_csv_dates(self):
         self.table(); self.e.execute("REPLACE DATA WITH DATE()"); self.e.execute('COPY TO export DELIMITED')
-        self.e.execute('APPEND FROM export.csv'); self.assertEqual(self.e.expr('RECCOUNT()'),6)
+        self.e.execute('APPEND FROM export DELIMITED'); self.assertEqual(self.e.expr('RECCOUNT()'),6)
+        self.e.execute('GO 4'); self.assertEqual(self.e.expr('DATA'),dt.date.today())
+        self.e.execute('COPY TO export TYPE CSV'); self.e.execute('APPEND FROM export.csv'); self.assertEqual(self.e.expr('RECCOUNT()'),12)
+        self.e.execute('GO 7'); self.assertEqual(self.e.expr('DATA'),dt.date.today())
     def test_memory_date(self):
         self.e.execute('D=DATE()'); self.e.execute('SAVE TO mem'); self.e.execute('RELEASE ALL'); self.e.execute('RESTORE FROM mem')
         self.assertEqual(self.e.expr('D'),dt.date.today())
@@ -210,7 +213,7 @@ class PlusTests(unittest.TestCase):
         with self.assertRaises(XBaseError): self.e.run_file('bad')
         self.assertEqual(self.e.expr('X'),99); self.assertEqual(len(self.e.calls),0)
     def test_static_check_no_side_effects(self):
-        self.program('check','CREATE test (N C 5)\nREPORT FORM old\n')
+        self.program('check','CREATE test (N C 5)\nRUN DIR\n')
         report=self.e.check('check')
         self.assertEqual(report['status'],'unsupported'); self.assertFalse((self.root/'test.sqlite').exists())
     def test_static_function_check(self):

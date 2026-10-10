@@ -217,11 +217,13 @@ class DBaseEngine:
                     t=item.split(); fs.append(Field(t[0],t[1],int(t[2]) if len(t)>2 else 30,int(t[3]) if len(t)>3 else 0))
             else:
                 name=tail or self.input('Nome do banco: ')
-                self.output('Campo: NOME TIPO TAMANHO DECIMAIS. Linha vazia termina.')
+                # Diálogo do dBASE II: "MATRICULA,N,4"; espaços também separam.
+                self.output('Entre com a estrutura do registro: nome do campo, tipo, tamanho, casas decimais. Linha vazia termina.')
                 while True:
-                    t=self.input('Campo: ').split()
+                    t=self.input(f'{len(fs)+1:03}     ').replace(',',' ').split()
                     if not t: break
-                    fs.append(Field(t[0],t[1],int(t[2]) if len(t)>2 else 30,int(t[3]) if len(t)>3 else 0))
+                    if len(t)<2: raise ValueError('Campo: NOME,TIPO,TAMANHO,DECIMAIS')
+                    fs.append(Field(t[0],t[1],int(t[2]) if len(t)>2 else {'L':1,'D':8,'M':10}.get(t[1].upper(),30),int(t[3]) if len(t)>3 else 0))
             return self.create(name,fs)
         if cmd in ('LIST','DISPLAY') and tail.upper()=='FILES' or cmd=='DIR':
             self.output('\n'.join(p.name for p in self.cwd.glob('*.sqlite'))); return

@@ -5,8 +5,77 @@ from contextlib import contextmanager
 from .syntax import XBaseError
 
 
+STRING_SLOTS='9#XA!NLY'
+NUMBER_SLOTS='9#$*'
+
+
+def split_picture(picture):
+    """Separa a função (@R, @E...) do gabarito, como em "@R 999.999-99"."""
+    picture=str(picture)
+    if picture.startswith('@'):
+        flags,_,template=picture.partition(' ')
+        return flags[1:].upper(),template
+    return '',picture
+
+
+def number_picture(value,flags,template):
+    integer,dot,fraction=template.partition('.')
+    decimals=sum(c in NUMBER_SLOTS for c in fraction)
+    negative=value<0 and '(' not in flags and 'X' not in flags
+    digits=f'{abs(value):.{decimals}f}'
+    whole,_,part=digits.partition('.')
+    fill='*' if '*' in integer else '$' if '$' in integer else ' '
+    slots=sum(c in NUMBER_SLOTS for c in integer)
+    if len(whole)+negative>slots: return '*'*len(template)
+    pending=list(whole); out=[]; sign=negative
+    for ch in reversed(integer):
+        if ch in NUMBER_SLOTS:
+            if pending: out.append(pending.pop())
+            elif sign: out.append('-'); sign=False
+            else: out.append(fill)
+        elif ch==',': out.append(',' if pending else fill)
+        else: out.append(ch)
+    text=''.join(reversed(out))
+    if dot:
+        decimal_digits=iter(part)
+        text+='.'+''.join(next(decimal_digits,'0') if c in NUMBER_SLOTS else c for c in fraction)
+    return text
+
+
+def transform(value,picture,format_value=str):
+    """Formatação de saída de SAY USING/PICTURE e TRANSFORM()."""
+    flags,template=split_picture(picture)
+    if isinstance(value,bool):
+        if not template: return '.T.' if value else '.F.'
+        return ('Y' if value else 'N') if 'Y' in template.upper() else ('T' if value else 'F')
+    if isinstance(value,dt.date): return format_value(value)
+    if isinstance(value,(int,float)):
+        if 'Z' in flags and value==0: return ' '*(len(template) if template else len(format_value(value)))
+        text=number_picture(value,flags,template) if any(c in template for c in NUMBER_SLOTS) else format_value(value)
+        if value<0 and '(' in flags: text=('('+text.strip()+')').rjust(len(text))
+        if value<0 and 'X' in flags: text+=' DB'
+        if value>0 and 'C' in flags: text+=' CR'
+        if 'B' in flags: text=text.strip().ljust(len(text))
+        if 'E' in flags: text=text.translate(str.maketrans('.,',',.'))
+        return text
+    text=str(value)
+    if template:
+        out=[]; i=0
+        for ch in template:
+            if ch.upper() in STRING_SLOTS:
+                c=text[i] if i<len(text) else ' '; i+=1
+                if ch in '9#' and not (c.isdigit() or c in ' +-.'): c=' '
+                out.append(c.upper() if ch=='!' else c)
+            else:
+                out.append(ch)
+                # Sem @R o literal ocupa a posição do caractere, como no dBASE II/III.
+                if 'R' not in flags: i+=1
+        text=''.join(out)
+    return text.upper() if '!' in flags else text
+
+
 class PictureMask:
-    def __init__(self,value,picture='',format_value=str,width=None):
+    def __init__(self,value,picture='',format_value=str,width=None,decimals=0):
         self.value=value
         self.numeric=isinstance(value,(int,float)) and not isinstance(value,bool)
         self.date=isinstance(value,dt.date)
@@ -17,11 +86,11 @@ class PictureMask:
             self.flags,_,self.template=self.template.partition(' ')
         if not self.template:
             if self.date: self.template=''.join('9' if c.isdigit() else c for c in format_value(dt.date(2001,1,1)))
-            elif self.numeric: self.template='#'*(width or 10)
+            elif self.numeric: self.template='9'*(width-decimals-1)+'.'+'9'*decimals if width and decimals else '#'*(width or 10)
             elif isinstance(value,bool): self.template='L'
             else: self.template='X'*(width or max(1,len(str(value))))
         if len(self.template)>4096: raise XBaseError('PICTURE excede 4096 caracteres.')
-        self.slots=[i for i,c in enumerate(self.template) if c in 'X9#!ALY']
+        self.slots=[i for i,c in enumerate(self.template) if c in 'X9#!ALYN' or self.numeric and c in '$*']
         if not self.slots: raise XBaseError('PICTURE precisa ter ao menos uma posição editável.')
         self.format_value=format_value
 
@@ -30,8 +99,10 @@ class PictureMask:
     def accepts(self,position,ch):
         token=self.template[position]
         if ch==' ': return True
-        if token in '9#': return ch.isascii() and ch.isdigit() or self.numeric and position==self.slots[0] and ch in '+-' or self.numeric and '.' not in self.template and ch=='.'
+        if 'A' in self.flags and not ch.isalpha(): return False
+        if token in '9#$*': return ch.isascii() and ch.isdigit() or self.numeric and position==self.slots[0] and ch in '+-' or self.numeric and '.' not in self.template and ch=='.'
         if token=='A': return ch.isalpha()
+        if token=='N': return ch.isalnum()
         if token in 'LY': return ch.upper() in 'TFYNS'
         return ch.isprintable()
 
@@ -84,7 +155,7 @@ class PictureMask:
         if self.numeric:
             raw=display.replace(',','').replace(' ','')
             if not raw: return 0
-            return float(raw)
+            return float(raw) if '.' in raw else int(raw)
         if isinstance(self.value,bool):
             raw=display.strip().upper()
             if raw not in ('T','F','Y','N','S'): raise XBaseError('Valor lógico inválido.')
@@ -98,7 +169,7 @@ class FieldEditor:
     def __init__(self,mask,confirm=False,initial=None):
         self.mask=mask; self.confirm=confirm
         self.buffer=list(initial if initial is not None else mask.initial())
-        self.position=mask.slots[0]; self.started=False; self.changed=False
+        self.position=mask.slots[0]; self.started=False; self.changed=False; self.insert=False
 
     @property
     def text(self): return ''.join(self.buffer)
@@ -114,7 +185,13 @@ class FieldEditor:
         if key=='END': self.started=True; self.position=slots[-1]; return
         if key=='BACKSPACE':
             self.position=slots[max(0,at-1)]; self.buffer[self.position]=' '; self.changed=True; self.started=True; return
-        if key=='DELETE': self.buffer[self.position]=' '; self.changed=True; self.started=True; return
+        if key=='DELETE':
+            # Apaga sob o cursor e puxa os caracteres seguintes do campo.
+            tail=[self.buffer[s] for s in slots[at+1:]]+[' ']
+            for s,ch in zip(slots[at:],tail): self.buffer[s]=ch
+            self.changed=True; self.started=True; return
+        if key=='INSERT': self.insert=not self.insert; self.started=True; return
+        if key=='CLEARFIELD': self.buffer=self.mask.blank(); self.position=slots[0]; self.changed=True; self.started=True; return
         if len(key)!=1: return
         if self.mask.numeric and key=='.' and '.' in self.mask.template:
             after=[s for s in slots if s>self.mask.template.index('.')]
@@ -125,6 +202,9 @@ class FieldEditor:
         if not self.mask.accepts(self.position,key): return 'invalid'
         if not self.started:
             self.buffer=self.mask.blank(); self.started=True
+        if self.insert:
+            moved=[self.buffer[s] for s in slots[at:-1]]
+            for s,ch in zip(slots[at+1:],moved): self.buffer[s]=ch
         self.buffer[self.position]=self.mask.normalize(self.position,key); self.changed=True
         if at==len(slots)-1: return None if self.confirm else 'next'
         self.position=slots[at+1]
@@ -138,7 +218,7 @@ def terminal_keys():
         def read():
             ch=msvcrt.getwch()
             if ch in ('\x00','\xe0'):
-                return {'K':'LEFT','M':'RIGHT','H':'UP','P':'DOWN','G':'HOME','O':'END','S':'DELETE'}.get(msvcrt.getwch(),'UNKNOWN')
+                return {'K':'LEFT','M':'RIGHT','H':'UP','P':'DOWN','G':'HOME','O':'END','S':'DELETE','R':'INSERT','I':'PGUP','Q':'PGDN','u':'SAVE'}.get(msvcrt.getwch(),'UNKNOWN')
             return normalize_key(ch)
         yield read
     else:
@@ -156,7 +236,7 @@ def terminal_keys():
                 while select.select([fd],[],[],.03)[0]:
                     suffix+=os.read(fd,1).decode('ascii',errors='replace')
                     if suffix[-1:].isalpha() or suffix.endswith('~'): break
-                return {'[D':'LEFT','[C':'RIGHT','[A':'UP','[B':'DOWN','[H':'HOME','[F':'END','[1~':'HOME','[4~':'END','[3~':'DELETE','[Z':'SHIFT_TAB'}.get(suffix,'ESC')
+                return {'[D':'LEFT','[C':'RIGHT','[A':'UP','[B':'DOWN','[H':'HOME','[F':'END','[1~':'HOME','[4~':'END','[3~':'DELETE','[Z':'SHIFT_TAB','[2~':'INSERT','[5~':'PGUP','[6~':'PGDN'}.get(suffix,'ESC')
             return normalize_key(ch)
         try:
             tty.setraw(fd); yield read
@@ -165,4 +245,6 @@ def terminal_keys():
 
 def normalize_key(ch):
     if ch=='\x03': raise KeyboardInterrupt()
-    return {'\r':'ENTER','\n':'ENTER','\t':'TAB','\x13':'LEFT','\x04':'RIGHT','\x08':'BACKSPACE','\x7f':'BACKSPACE','\x1b':'ESC'}.get(ch,ch)
+    # Teclas de controle do editor do dBASE II/III: Ctrl+S/D/E/X movem, Ctrl+W grava, Ctrl+Q abandona.
+    return {'\r':'ENTER','\n':'ENTER','\t':'TAB','\x13':'LEFT','\x04':'RIGHT','\x05':'UP','\x18':'DOWN','\x08':'BACKSPACE','\x7f':'BACKSPACE','\x1b':'ESC',
+        '\x17':'SAVE','\x11':'ESC','\x12':'PGUP','\x07':'DELETE','\x19':'CLEARFIELD','\x16':'INSERT','\x15':'MARK','\x01':'HOME','\x06':'END'}.get(ch,ch)

@@ -51,8 +51,11 @@ class EngineTests(unittest.TestCase):
         self.e.execute('GO TOP'); self.assertEqual(len(self.e.execute('DISPLAY NEXT 2')),2)
         self.assertEqual(len(self.e.execute('DISPLAY')),1)
     def test_csv(self):
-        self.e.execute('COPY TO dados DELIMITED'); self.e.execute('APPEND FROM dados.csv')
+        self.e.execute('COPY TO dados DELIMITED'); self.e.execute('APPEND FROM dados DELIMITED')
         self.assertEqual(self.e.execute('COUNT'),6)
+        self.assertEqual((self.root/'dados.txt').read_text().splitlines()[0],'"ANA",30,10.25,T')
+        self.e.execute('COPY TO dados.csv'); self.e.execute('APPEND FROM dados.csv')
+        self.assertEqual(self.e.execute('COUNT'),12)
     def test_memory(self):
         self.e.execute('STORE 123 TO X'); self.e.execute('SAVE TO vars'); self.e.execute('RELEASE ALL'); self.e.execute('RESTORE FROM vars')
         self.assertEqual(self.e.expr('X'),123)

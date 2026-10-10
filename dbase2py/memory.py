@@ -7,6 +7,14 @@ from .syntax import XBaseError
 UNSET=object()
 
 
+class XArray(list):
+    """Array do dBASE IV/Clipper/FoxPro: listas aninhadas com índices a partir de 1."""
+    @classmethod
+    def build(cls,dims,fill=False):
+        if not dims: return fill
+        return cls(cls.build(dims[1:],fill) if len(dims)>1 else fill for _ in range(int(dims[0])))
+
+
 @dataclass
 class Cell:
     value: object = UNSET

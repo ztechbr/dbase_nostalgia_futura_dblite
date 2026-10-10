@@ -1,14 +1,14 @@
-# dBASE SQLite PLUS 2.1
+# dBASE SQLite PLUS 2.2
 
-Interpretador Python para executar programas PRG escritos com um conjunto ampliado de comandos dBASE III PLUS, mantendo os dados em SQLite. Inclui console, procedimentos, variáveis com escopo, parâmetros por referência, macros, expressões xBase, operações entre áreas e entrada/saída no terminal.
+Interpretador Python para executar programas CMD/PRG do dBASE II (inclusive o do MSX) e do dBASE III PLUS, mantendo os dados em SQLite. Inclui console, procedimentos, variáveis com escopo, parâmetros por referência, macros, expressões xBase, operações entre áreas e entrada/saída no terminal.
 
-Esta versão amplia a implementação SQLite 2.0 entregue anteriormente. Não é o executável original, não emula MS-DOS e não oferece compatibilidade integral com qualquer aplicação dBASE III PLUS. A cobertura e as diferenças estão em [COMPATIBILITY.md](COMPATIBILITY.md). O parser rejeita comandos desconhecidos explicitamente.
+Esta versão amplia a implementação SQLite 2.1. Não é o executável original, não emula MSX-DOS nem MS-DOS e não oferece compatibilidade integral com qualquer aplicação dBASE. A cobertura e as diferenças estão em [COMPATIBILITY.md](COMPATIBILITY.md). O parser rejeita comandos desconhecidos explicitamente.
 
-Referência utilizada: David M. Kalman, *The dBASE Language Handbook*, 1989, no [PDF indicado](https://www.terrellamedia.com/wp-content/uploads/2022/01/dBASE-Language-Handbook-by-David-M-Kalman-Final.pdf). O livro trata vários dialetos. Recursos de Clipper/FoxBASE/dBASE IV que também foram incluídos são identificados como extensões. O PDF e os exemplos do livro não são redistribuídos neste pacote; os exemplos PRG aqui foram escritos para este projeto.
+Referências: curso MarMSX de dBASE II ([programável](https://marmsx.msxall.com/cursos/dbase_prog/index.php) e [interativo](https://marmsx.msxall.com/cursos/dbase/index.php)) e David M. Kalman, *The dBASE Language Handbook*, 1989, no [PDF indicado](https://www.terrellamedia.com/wp-content/uploads/2022/01/dBASE-Language-Handbook-by-David-M-Kalman-Final.pdf). O livro trata vários dialetos. Recursos de Clipper/FoxBASE/dBASE IV que também foram incluídos são identificados como extensões. O PDF e os exemplos do livro não são redistribuídos neste pacote; os exemplos PRG aqui foram escritos para este projeto.
 
 ## Requisitos e início
 
-Python 3.10 ou superior, sem pacotes externos. Windows, Linux e macOS. Testes executados em Python 3.12/Linux. O inicializador Windows foi incluído, mas não foi validado em uma máquina Windows nesta execução.
+Python 3.10 ou superior, sem pacotes externos. Windows, Linux e macOS. A suíte da 2.2 foi executada em Python 3.14/Windows 11; a 2.1, em Python 3.12/Linux. O inicializador `iniciar.bat` não foi executado nesta revisão.
 
 Extraia o ZIP e abra um terminal na pasta que contém `main.py`:
 
@@ -18,9 +18,19 @@ python main.py --cwd ./data
 
 No Windows, também pode abrir `iniciar.bat`. Digite HELP para a referência de comandos e QUIT para sair. O ponto é o prompt e não faz parte do comando.
 
-## Formulários da versão 2.1
+## dBASE II do MSX e revisão 2.2
 
-GET exibe o valor entre dois-pontos, READ edita campos com máscaras e salta separadores. SET CONFIRM ON exige Enter; OFF permite avanço automático. Inclui Control+S/Control+D, navegação entre campos, SAY USING e SAVE ALL LIKE/EXCEPT. Veja [FORMS.md](FORMS.md) e os exemplos `formulario.prg` e `formulario_alunos.prg`.
+A versão 2.2 foi revisada contra o curso MarMSX de dBASE II (interativo e programável). Os programas do curso rodam com `--dialect dbase2`: `!(nome)`, `$(s,i,n)`, `#`, `do while .not. eof`, `P.campo`/`S.campo`, SET LINKAGE, INSERT, CHANGE FIELD, REPORT FORM com diálogo e os comandos PLUS. A comparação item a item, as mudanças de comportamento e as pendências estão em [REVISAO.md](REVISAO.md).
+
+```bash
+python main.py --cwd ./escola --dialect dbase2 --cmd menu.cmd
+```
+
+Arquivos `.DBF` do dBASE II/III/IV/FoxPro (com memo) colocados na pasta são convertidos para SQLite no primeiro `USE`; `.NDX`/`.NTX` e `.MEM` também são lidos. Veja "Portar um sistema" abaixo.
+
+## Formulários
+
+GET exibe o valor entre delimitadores, READ edita campos com máscaras e salta separadores. APPEND, EDIT, CHANGE e INSERT usam a mesma tela de GETs ou um formato `.FMT` (SET FORMAT TO). Há VALID/WHEN, READ SAVE, @ TO DOUBLE, @ PROMPT/MENU TO, SAVE SCREEN, BROWSE em grade editável, impressora emulada em arquivo, REPORT FORM e LABEL FORM. No terminal a tela abre em fósforo verde sobre fundo preto (`--monitor ambar`, `branco`, `cores` ou `nenhum` mudam isso). Arrays de dBASE IV/Clipper/FoxPro estão disponíveis como extensão. Veja [FORMS.md](FORMS.md) e os exemplos `formulario.prg` e `formulario_alunos.prg`.
 
 ## Seu próprio banco SQLite
 
@@ -80,7 +90,15 @@ SET PROCEDURE TO rotinas
 DO principal
 ```
 
-Nomes de arquivos são procurados sem distinguir maiúsculas/minúsculas quando há uma correspondência única. Os caminhos são restritos ao diretório `--cwd`; diretórios/drive letters DOS, SET DEFAULT e SET PATH não estão implementados. Adapte os caminhos legados ou organize os arquivos nesse diretório.
+Nomes de arquivos são procurados sem distinguir maiúsculas/minúsculas quando há uma correspondência única. Os caminhos são restritos ao diretório `--cwd`. Unidades DOS/MSX como `B:VENDA` são ignoradas; SET DEFAULT e SET PATH apontam para subpastas de `--cwd`.
+
+## Portar um sistema
+
+1. Copie para uma pasta os `.PRG`/`.CMD`, `.FMT`, `.FRM`, `.DBF` com `.DBT`, `.NDX` e `.MEM` do sistema. Textos acentuados do MSX precisam do mapa de caracteres do MSX; converta com o MarMSX Text Tools ou informe `--encoding`.
+2. Rode `python main.py --cwd pasta --check principal.prg` em cada programa.
+3. Converta os dados de uma vez, se preferir: `python main.py --cwd pasta --import-dbf CLIENTES.DBF`.
+4. Execute com `--dialect dbase2` para código do MSX/CP-M ou com o padrão para dBASE III PLUS.
+5. Leia a seção "Mudanças de comportamento" de [REVISAO.md](REVISAO.md) e teste numa cópia dos dados.
 
 ## Auditoria antes da execução
 
@@ -111,7 +129,7 @@ Resultados esperados:
 - UPDATE altera os limites e a soma final chega a 6075.
 - A linha final mostra `Validacao: .T.`.
 
-O demo gera destinos novos. Execute novamente em outro diretório, pois CREATE/COPY de bancos não sobrescrevem arquivos existentes.
+O demo gera destinos novos. Execute novamente em outro diretório: CREATE não sobrescreve bancos e COPY pede confirmação com SET SAFETY ON.
 
 Menu interativo de consulta:
 
@@ -143,7 +161,7 @@ DO aumenta WITH VALOR, 0.10
 ? VALOR
 ```
 
-VALOR vira 1100. Uma variável simples passada em DO WITH é uma referência à variável do chamador. Campo, literal ou expressão é passado por valor. `(VALOR)` força uma expressão passada por valor. PARAMETERS deve ser o primeiro comando executável quando existem argumentos; as quantidades precisam coincidir.
+VALOR vira 1100. Uma variável simples passada em DO WITH é uma referência à variável do chamador. Campo, literal ou expressão é passado por valor. `(VALOR)` força uma expressão passada por valor. PARAMETERS deve ser o primeiro comando executável quando existem argumentos. Parâmetros sem argumento correspondente recebem .F.; argumentos a mais são erro.
 
 PRIVATE oculta variáveis homônimas do chamador até terminar o procedimento. PUBLIC mantém uma variável disponível depois da chamada. Variáveis novas criadas num programa são liberadas quando ele termina. As variáveis existentes de um chamador permanecem acessíveis por escopo dinâmico.
 
@@ -157,11 +175,11 @@ REPLACE valida os tipos: C/M recebem texto, N recebe número, L recebe lógico e
 
 ## SQLite e migração
 
-`USE clientes.dbf` é traduzido para `clientes.sqlite`, permitindo manter esse nome nos PRGs. FILE, CREATE e comandos de arquivos também traduzem a extensão .dbf para .sqlite. Isso não importa nem lê DBF binário. Um DBF original não deve ser renomeado para SQLite: ele precisa de conversão externa para o formato de metadados deste projeto. NDX/MDX/DBT/FRM/MEM binários não são lidos.
+`USE clientes.dbf` é traduzido para `clientes.sqlite`, permitindo manter esse nome nos PRGs. FILE, CREATE e comandos de arquivos também traduzem a extensão .dbf para .sqlite. Se `clientes.sqlite` não existe e há um `clientes.dbf` na pasta, o primeiro USE converte o DBF (dBASE II/III/IV/FoxPro, memo DBT/FPT, registros apagados preservados); o arquivo original não é alterado. `SET INDEX TO` lê a chave de `.NDX`/`.NTX`, `RESTORE FROM` lê `.MEM` do dBASE III PLUS e `REPORT FORM` lê `.FRM` do dBASE III/Clipper. MDX/CDX não são lidos.
 
 Bancos SQLite criados pela versão 1.0 podem ser abertos pela 2.0. Ao abrir, é adicionada uma coluna de metadados de índices quando necessário. A 2.0 não foi projetada para permitir que a versão 1.0 volte a escrever nesses índices depois da atualização. Faça uma cópia se precisar manter ambas.
 
-O banco usa `records`, `_schema` e `_indexes`; a exclusão lógica fica em `_deleted`. Os índices pertencem ao próprio SQLite, sem arquivo NDX. Chaves de campo simples também criam índices SQLite nativos, mas ordenação, filtragem e busca no console são avaliadas em Python. JOIN pode percorrer todas as combinações de registros. Este interpretador é indicado para estudos, aplicações locais pequenas e adaptação de lógica, não para grandes volumes ou equivalência de desempenho com o runtime original.
+O banco usa `records`, `_schema` e `_indexes`; a exclusão lógica fica em `_deleted`. Os índices pertencem ao próprio SQLite, sem arquivo NDX. Chaves de campo simples também criam índices SQLite nativos, mas ordenação, filtragem e busca no console são avaliadas em Python sobre um cache por área, atualizado no lugar a cada REPLACE/APPEND BLANK; SEEK faz busca binária. Em teste, 5.000 inclusões com REPLACE mais uma varredura completa com SKIP levam cerca de 2 segundos. JOIN percorre todas as combinações de registros. Os bancos usam `journal_mode=WAL` e `synchronous=NORMAL`.
 
 Numéricos são armazenados em REAL e podem ter aproximação de ponto flutuante. ROUND usa arredondamento decimal half-up na etapa de formatação/validação, mas isso não muda a representação do armazenamento para decimal exato. Não há atomicidade de PRG inteiro nem transação distribuída entre arquivos. Operações entre múltiplos bancos precisam de validação de negócio.
 
@@ -198,6 +216,11 @@ Arquivos principais:
 - `dbase2py/functions.py`: funções de texto, número, data e ambiente.
 - `dbase2py/engine.py`: comando, tela, índices e operações de dados.
 - `dbase2py/storage.py`: camada de persistência e funcionalidades herdadas da 1.0.
+- `dbase2py/dbf.py`: leitura de DBF/DBT/FPT/NDX/NTX/MEM e exportação DBF.
+- `dbase2py/report.py`: REPORT FORM, FRM binário e diálogo do dBASE II.
+- `dbase2py/plus.py`: comandos PLUS do dBASE II PLUS para MSX.
+- `dbase2py/label.py`: LABEL FORM, LBL binário e diálogo de etiquetas.
+- `dbase2py/colors.py`: monitores de fósforo e códigos de SET COLOR.
 - `dbase2py/compatibility.py`: auditoria estática parcial.
 - `dbase2py/cli.py`: terminal e execução em lote.
 

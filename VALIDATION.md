@@ -1,4 +1,29 @@
-# Validação da versão 2.1
+# Validação
+
+## Versão 2.2
+
+Resultado: **160 testes; 159 passaram e 1 foi ignorado** (o teste de pseudo-terminal POSIX não roda no Windows). Ambiente: Python 3.14.3, Windows 11.
+
+`tests/test_arrays_browse_labels.py` (12 testes) cobre arrays (declaração, literais, 2 dimensões, sintaxe FoxPro, funções, COPY TO ARRAY, SCATTER/GATHER, GET, SAVE/RESTORE, escopo LOCAL), LABEL FORM (diálogo, duas por linha, linhas vazias, TO FILE, LBL binário, SAMPLE), BROWSE (edição, inclusão, exclusão, descarte de linha vazia, NOAPPEND, FREEZE, NOEDIT, fallback em listagem) e cores (códigos de SET COLOR, monitores e sequências emitidas).
+
+```bash
+python -m pytest -q tests
+```
+
+`tests/test_msx_course.py` (36 testes) reproduz os exemplos do curso MarMSX com as tabelas alunos e notasmat:
+
+- Curso interativo: DISPLAY no formato `00001`, OFF, `$()`, ponteiro `#`, número no prompt, `!()` com SET EXACT, COUNT/SUM/LOCATE/CONTINUE com as mensagens do dBASE II, REPLACE/CHANGE com escopo, DELETE/RECALL/PACK, INDEX/FIND, índice composto, SORT ascendente e descendente, TOTAL por sexo (F 49, M 70), JOIN com P./S., SET LINKAGE, CLEAR do dBASE II, CREATE com `MATRICULA,N,4`, DISPLAY STRUCTURE, MODIFY STRUCTURE preservando dados, DISPLAY FILES e DELETE FILE.
+- Curso programável: SAY USING (`150.4`, `12/10/2024`), TEXT/TEXTEND, REMARK, DO CASE com `!()`, LOOP (1, 2, 4, 5), maior média (Beatriz Saraiva, 9.90), módulo de inclusão com `store # to regpos` e matrícula repetida, busca por nome com CONTINUE, SET FORMAT TO PRINTER e os comandos PLUS.
+- dBASE III: cabeçalho `Record#`, SET HEADING, relação acompanhando LIST/COUNT, eco de TALK e alinhamento numérico, SCAN/FOR/ELSEIF, COPY/APPEND SDF e ida e volta por DBF.
+- Formulários e relatórios: APPEND por linha e por tecla com SET CARRY, EDIT com PgDn, INSERT BEFORE BLANK, VALID/WHEN/ERROR e delimitadores, SET FORMAT TO .fmt com READ e APPEND, moldura dupla, SAVE/RESTORE SCREEN, MENU TO, funções de PICTURE, CREATE REPORT pelo diálogo, REPORT FORM com FOR/PLAIN/TO FILE e FRM binário.
+- Arquivos legados: DBF do dBASE II (cabeçalho de 521 bytes, campo `NOTA:1`, registro apagado) e DBF do dBASE III com memo DBT, índice NDX e MEM binário.
+- Desempenho: 5.000 APPEND BLANK/REPLACE, INDEX, varredura com REPLACE e SKIP, SEEK e SUM em cerca de 2 segundos.
+
+Também foi executado pela CLI um menu no estilo do curso com `--dialect dbase2 --plain` (APPEND em tela e DISPLAY ALL), `--check` e `--import-dbf`.
+
+Limites: não houve comparação com um executável dBASE II/III; o editor por tecla foi testado com teclas injetadas, sem sessão manual em console Windows.
+
+## Versão 2.1
 
 Resultado registrado: **112 testes, todos passaram**.
 

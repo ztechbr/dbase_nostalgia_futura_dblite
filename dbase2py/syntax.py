@@ -18,15 +18,25 @@ class Token:
     end: int
 
 
+def subscript(text, i):
+    """[ colado a nome, ) ou ] é índice de array (arr[1]); nos demais casos abre texto [assim]."""
+    return text[i] == '[' and i > 0 and (text[i-1].isalnum() or text[i-1] in '_)]')
+
+
 def lex(text):
     result = []
     i = 0
+    brackets = 0
     while i < len(text):
         ch = text[i]
         if ch.isspace():
             i += 1
             continue
         start = i
+        if subscript(text, i):
+            brackets += 1; i += 1; result.append(Token('op','[',start,i)); continue
+        if ch == ']' and brackets:
+            brackets -= 1; i += 1; result.append(Token('op',']',start,i)); continue
         if ch in "'\"[":
             close = ']' if ch == '[' else ch
             i += 1
@@ -54,7 +64,7 @@ def lex(text):
         pair = text[i:i+2]
         if pair in ('->','<=','>=','<>','!=','==','**',':='):
             i += 2; result.append(Token('op',pair,start,i)); continue
-        if ch in '+-*/%^$=<>#!(),.;:&':
+        if ch in '+-*/%^$=<>#!(),.;:&@{}':
             i += 1; result.append(Token('op',ch,start,i)); continue
         raise XBaseError(f'Caractere inválido em expressão: {ch!r}')
     result.append(Token('end','',len(text),len(text)))
@@ -73,9 +83,10 @@ def outside_words(text):
                     i += 2; continue
                 quote = None
             i += 1; continue
+        if subscript(text, i): depth += 1; i += 1; continue
         if ch in "'\"[": quote = ']' if ch == '[' else ch; i += 1; continue
-        if ch == '(': depth += 1
-        if ch == ')': depth -= 1
+        if ch in '({': depth += 1
+        if ch in ')}' or ch == ']' and depth: depth -= 1
         if depth == 0 and (ch.isalpha() or ch == '_'):
             match = re.match(r'[A-Za-z_][A-Za-z_0-9]*',text[i:])
             yield match[0].upper(),i,i+len(match[0]); i += len(match[0]); continue
@@ -90,9 +101,10 @@ def split(text):
             if ch==quote:
                 if quote!=']' and i+1<len(text) and text[i+1]==quote: i+=2; continue
                 quote=None
+        elif subscript(text,i): depth+=1
         elif ch in "'\"[": quote=']' if ch=='[' else ch
-        elif ch=='(': depth+=1
-        elif ch==')': depth-=1
+        elif ch in '({': depth+=1
+        elif ch in ')}' or ch==']' and depth: depth-=1
         elif ch==',' and depth==0: pieces.append(text[start:i].strip()); start=i+1
         i+=1
     pieces.append(text[start:].strip())
@@ -118,7 +130,7 @@ def uncomment(line):
             if ch==quote:
                 if quote!=']' and line[i+1]==quote: i+=2; continue
                 quote=None
-        elif ch in "'\"[": quote=']' if ch=='[' else ch
+        elif ch in "'\"[" and not subscript(line,i): quote=']' if ch=='[' else ch
         elif line[i:i+2]=='&&': return line[:i].rstrip()
         i+=1
     return line.rstrip()
@@ -135,7 +147,7 @@ def source_lines(text):
     for number,raw in enumerate(text.splitlines(),1):
         if in_text:
             result.append(SourceLine(raw,number))
-            if raw.strip().upper()=='ENDTEXT': in_text=False
+            if raw.strip().upper() in ('ENDTEXT','TEXTEND'): in_text=False
             continue
         line=uncomment(raw).strip()
         if not pending: start=number
@@ -149,7 +161,7 @@ def source_lines(text):
     return result
 
 
-COMMANDS = set('USE CREATE SELECT LIST DISPLAY BROWSE GO GOTO SKIP APPEND REPLACE DELETE RECALL PACK ZAP SET LOCATE CONTINUE SEEK FIND COUNT SUM AVERAGE INDEX REINDEX STORE RELEASE SAVE RESTORE COPY SORT TOTAL JOIN UPDATE EDIT CHANGE ACCEPT INPUT WAIT CLEAR CLOSE ERASE RENAME DIR DIRECTORY HELP QUIT CANCEL RETURN PARAMETERS PRIVATE PUBLIC DO IF ELSE ENDIF CASE OTHERWISE ENDCASE ENDDO LOOP EXIT TEXT ENDTEXT PROCEDURE FUNCTION READ EJECT ON RETRY'.split())
+COMMANDS = set('USE CREATE SELECT LIST DISPLAY BROWSE GO GOTO SKIP APPEND REPLACE DELETE RECALL PACK ZAP SET LOCATE CONTINUE SEEK FIND COUNT SUM AVERAGE INDEX REINDEX STORE RELEASE SAVE RESTORE COPY SORT TOTAL JOIN UPDATE EDIT CHANGE ACCEPT INPUT WAIT CLEAR CLOSE ERASE RENAME DIR DIRECTORY HELP QUIT CANCEL RETURN PARAMETERS PRIVATE PUBLIC DO IF ELSE ELSEIF ENDIF CASE OTHERWISE ENDCASE ENDDO LOOP EXIT TEXT ENDTEXT TEXTEND PROCEDURE FUNCTION READ EJECT ON RETRY REMARK INSERT MODIFY REPORT LABEL PLUS IMPORT MENU SCAN ENDSCAN ENDFOR UNLOCK RESET DECLARE DIMENSION LOCAL SCATTER GATHER'.split())
 ABBREVIATIONS={}
 for command in COMMANDS:
     for n in range(4,len(command)):
@@ -164,4 +176,5 @@ def command_parts(line):
     m=re.match(r'([A-Za-z_][A-Za-z_0-9]*)(.*)',line,re.S)
     if not m: raise XBaseError('Comando inválido.')
     name=m[1].upper(); rest=m[2].strip()
+    if name in COMMANDS: return name,rest
     return ABBREVIATIONS.get(name,name) or name,rest

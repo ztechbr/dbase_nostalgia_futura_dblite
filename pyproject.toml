@@ -1,5 +1,5 @@
 [project]
 name = "dbase-sqlite-console"
-version = "2.1.0"
+version = "2.2.0"
 requires-python = ">=3.10"
-description = "Interpretador PRG dBASE III PLUS parcial com bancos SQLite"
+description = "Interpretador PRG dBASE II (MSX) e dBASE III PLUS com bancos SQLite"
