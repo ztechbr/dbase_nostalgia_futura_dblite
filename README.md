@@ -32,6 +32,47 @@ Arquivos `.DBF` do dBASE II/III/IV/FoxPro (com memo) colocados na pasta são con
 
 GET exibe o valor entre delimitadores, READ edita campos com máscaras e salta separadores. APPEND, EDIT, CHANGE e INSERT usam a mesma tela de GETs ou um formato `.FMT` (SET FORMAT TO). Há VALID/WHEN, READ SAVE, @ TO DOUBLE, @ PROMPT/MENU TO, SAVE SCREEN, BROWSE em grade editável, impressora emulada em arquivo, REPORT FORM e LABEL FORM. No terminal a tela abre em fósforo verde sobre fundo preto (`--monitor ambar`, `branco`, `cores` ou `nenhum` mudam isso). Arrays de dBASE IV/Clipper/FoxPro estão disponíveis como extensão. Veja [FORMS.md](FORMS.md) e os exemplos `formulario.prg` e `formulario_alunos.prg`.
 
+## Exemplo: cadastro de clientes com menu e formulário
+
+`examples/clientes/clientes.prg` é um sistema completo no estilo dos aplicativos dBASE: tela com moldura dupla, menu principal com barra de seleção (`@ PROMPT`/`MENU TO`), formulário de inclusão e alteração com máscaras e validação (`@ GET ... PICTURE/VALID/MESSAGE` e `READ`), busca por código em índice (`INDEX ON`/`SEEK`), exclusão com `DELETE`/`PACK`, consulta em `BROWSE` e relatório na tela. Na primeira execução ele cria `clientes.sqlite` sozinho.
+
+Copie o programa para uma pasta de dados e execute-o a partir da pasta que contém `main.py`.
+
+Windows (PowerShell ou cmd):
+
+```bat
+mkdir clientes_data
+copy examples\clientes\clientes.prg clientes_data\
+python main.py --cwd clientes_data --cmd clientes.prg
+```
+
+Linux/macOS:
+
+```bash
+mkdir -p clientes_data
+cp examples/clientes/clientes.prg clientes_data/
+python main.py --cwd clientes_data --cmd clientes.prg
+```
+
+Também é possível chamá-lo pelo prompt do dBASE:
+
+```text
+python main.py --cwd clientes_data
+. DO clientes
+```
+
+Uso:
+
+| Tela | Teclas |
+| :--- | :--- |
+| Menu | Setas ↑/↓ e Enter, ou o número da opção; a linha 24 explica a opção |
+| Formulário | Digite e tecle Enter em cada campo; ↑/↓ mudam de campo; Esc abandona o campo |
+| Inclusão | Nome em branco volta ao menu; o código é o próximo número livre |
+| Alteração/Exclusão | Informe o código (0 volta ao menu) |
+| Consulta | BROWSE: setas navegam, Enter edita o nome, Esc volta ao menu |
+
+A tela abre em fósforo verde; use `--monitor ambar`, `--monitor cores` ou `--monitor nenhum` para mudar. Com `--plain` (ou entrada redirecionada) o menu e o formulário viram perguntas linha a linha, úteis para testar o programa por script. Para recomeçar do zero, apague `clientes_data/clientes.sqlite` (o índice fica dentro dele).
+
 ## Seu próprio banco SQLite
 
 ```text
